@@ -1,17 +1,11 @@
 # chaotic-canvas
 
-<div style="display: flex; flex-wrap: wrap; gap: 20px; align-items: center; justify-content: center;">
-  <div style="flex: 1; min-width: 250px;">
-    <p><strong>Target Image:</strong></p>
-    <img src="examples/starry_night.png" alt="Target Image" width="100%">
-  </div>
-  <div style="flex: 1; min-width: 300px;">
-    <p><strong>Evolution Process:</strong></p>
-    <img src="examples/starry_night_13kgen.gif" alt="Evolution Process" width="100%">
-  </div>
-</div>
+<p align="center">
+ <img src="examples/starry_night.png" alt="Target Image" width="40%"/> 
+  &nbsp; &nbsp; &nbsp; &nbsp;
+ <img src="examples/starry_night_13kgen.gif" alt="Evolution Process" width="40%"/>
+</p>
 
-<br/>
 Chaotic Canvas uses genetic algorithms to evolve images. The idea is to start with a population of random images and gradually improve them to resemble a target image as closely as possible. It does this by applying genetic operations (selection, crossover, and mutation) over multiple generations to iteratively improve the population over multiple generations.
 
 ## Installation
