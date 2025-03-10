@@ -6,7 +6,7 @@ import (
 	"os"
 )
 
-func SaveImage(filePath string, img *image.RGBA) error {
+func SaveImage(filePath string, img image.Image) error {
 	file, err := os.Create(filePath)
 	if err != nil {
 		return err

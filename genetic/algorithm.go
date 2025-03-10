@@ -1,54 +1,44 @@
 package genetic
 
 import (
-	"fmt"
 	"image"
 	"image/draw"
-	"log"
 	"math"
-	"os"
-	"path/filepath"
 	"runtime"
 	"sort"
-
-	"github.com/bishal0602/chaotic-canvas/utils"
 )
 
 // GeneticAlgorithm represents the genetic algorithm parameters and state
 type GeneticAlgorithm struct {
 	TargetRGBA     *image.RGBA
-	OutDir         string
 	PopulationSize int
 	Generations    int
 	MutationRate   float64
 }
 
-func NewGeneticAlgorithm(targetImagePath, outDir string, popSize, generations int, mutationRate float64) (*GeneticAlgorithm, error) {
-	targetImage, err := utils.ReadImage(targetImagePath)
-	if err != nil {
-		return nil, fmt.Errorf("error reading target image: %w", err)
-	}
+type ImageResult struct {
+	Img          image.Image
+	Generation   int
+	Fitness      float64
+	MutationRate float64
+}
 
-	bounds := targetImage.Bounds()
+func NewGeneticAlgorithm(target image.Image, popSize, generations int, mutationRate float64) (*GeneticAlgorithm, error) {
+	bounds := target.Bounds()
 	targetRGBA := image.NewRGBA(bounds)
-	draw.Draw(targetRGBA, bounds, targetImage, bounds.Min, draw.Src)
+	draw.Draw(targetRGBA, bounds, target, bounds.Min, draw.Src)
 
 	return &GeneticAlgorithm{
 		TargetRGBA:     targetRGBA,
-		OutDir:         outDir,
 		PopulationSize: popSize,
 		Generations:    generations,
 		MutationRate:   mutationRate,
 	}, nil
 }
 
-func (ga *GeneticAlgorithm) Run() (*Individual, error) {
-	// Create output directory for images
-	if err := os.MkdirAll(ga.OutDir, 0755); err != nil {
-		return nil, fmt.Errorf("error creating output directory: %w", err)
-	}
-
+func (ga *GeneticAlgorithm) Run(recv chan<- ImageResult, recvEvery int) (*Individual, error) {
 	// Initialize
+	defer close(recv)
 	adaptiveMutation := NewAdaptiveMutationStrategy(ga.MutationRate)
 	population := make([]*Individual, ga.PopulationSize)
 	for i := range population {
@@ -70,13 +60,13 @@ func (ga *GeneticAlgorithm) Run() (*Individual, error) {
 			bestIndividual = currentBest.CreateCopy()
 		}
 
-		// Save progress periodically
-		if gen%100 == 0 || gen == ga.Generations-1 {
-			log.Printf("Generation %d - Best fitness: %.2f - Mutation Rate: %.2f", gen, bestFitness, ga.MutationRate)
-
-			outPath := filepath.Join(ga.OutDir, fmt.Sprintf("best_gen_%d.png", gen))
-			if err := utils.SaveImage(outPath, currentBest.Image); err != nil {
-				return nil, fmt.Errorf("error saving image: %w", err)
+		// Send progress periodically
+		if gen%recvEvery == 0 || gen == ga.Generations-1 {
+			recv <- ImageResult{
+				Generation:   gen,
+				Img:          bestIndividual.Image,
+				Fitness:      bestFitness,
+				MutationRate: ga.MutationRate,
 			}
 		}
 	}
