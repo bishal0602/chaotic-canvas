@@ -144,7 +144,8 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			region := (child.Image.Bounds().Dx() + child.Image.Bounds().Dy()) / 4
+			region := (child.Image.Bounds().Dx() + child.Image.Bounds().Dy())
+			region = utils.Min(region/int(ga.MutationRate*100.0), region/4)
 
 			// More diverse mutations when mutation rate is higher
 			numPoints := rand.Intn(4) + 3
@@ -154,7 +155,10 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 
 			regionX := rand.Intn(child.Image.Bounds().Dx())
 			regionY := rand.Intn(child.Image.Bounds().Dy())
-			polygon := Polygon{Points: make([]image.Point, numPoints), Color: utils.RandomRGBA()}
+			polygon := Polygon{
+				Points: make([]image.Point, numPoints),
+				Color:  utils.RandomRGBA(),
+			}
 			for j := 0; j < numPoints; j++ {
 				x := utils.Clamp(regionX+rand.Intn(2*region)-region, 0, child.Image.Bounds().Dx()-1)
 				y := utils.Clamp(regionY+rand.Intn(2*region)-region, 0, child.Image.Bounds().Dy()-1)

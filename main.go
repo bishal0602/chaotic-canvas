@@ -57,16 +57,14 @@ func main() {
 	startTime := time.Now()
 	bestIndividual, err := algorithm.Run(recv, recvEvery)
 	if err != nil {
-		log.Printf("Error running genetic algorithm: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error running genetic algorithm: %v\n", err)
 	}
 	elapsed := time.Since(startTime)
 
 	// Save the final best individual
 	outPath := filepath.Join(cfg.OutDir, "final_result.png")
 	if err := utils.SaveImage(outPath, bestIndividual.Image); err != nil {
-		log.Printf("Error saving final image: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("Error saving final image: %v\n", err)
 	}
 
 	log.Printf("Evolution completed in %v\n", elapsed)
