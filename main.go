@@ -26,14 +26,36 @@ func main() {
 	fmt.Printf("- Generations: %d\n", cfg.Generations)
 	fmt.Printf("- Mutation rate: %.2f\n", cfg.MutationRate)
 
-	algorithm, err := genetic.NewGeneticAlgorithm(cfg.TargetImagePath, cfg.OutDir, cfg.PopulationSize, cfg.Generations, cfg.MutationRate)
+	img, err := utils.ReadImage(cfg.TargetImagePath)
 	if err != nil {
-		log.Printf("Error initializing genetic algorithm: %v\n", err)
-		os.Exit(1)
+		log.Fatalf("error reading target image: %v", err)
+	}
+	// Create output directory for images
+	if err := os.MkdirAll(cfg.OutDir, 0755); err != nil {
+		log.Fatalf("error creating output directory: %v", err)
+	}
+
+	recv := make(chan genetic.ImageResult)
+	recvEvery := 100
+	go func() {
+		for result := range recv {
+			outPath := filepath.Join(cfg.OutDir, fmt.Sprintf("best_gen_%d.png", result.Generation))
+			if err := utils.SaveImage(outPath, result.Img); err != nil {
+				log.Printf("Error saving image (gen %d): %v\n", result.Generation, err)
+			} else {
+				log.Printf("Generation %d - Best fitness: %.2f - Mutation Rate: %.2f", result.Generation, result.Fitness, result.MutationRate)
+
+			}
+		}
+	}()
+
+	algorithm, err := genetic.NewGeneticAlgorithm(img, cfg.PopulationSize, cfg.Generations, cfg.MutationRate)
+	if err != nil {
+		log.Fatalf("Error initializing genetic algorithm: %v\n", err)
 	}
 
 	startTime := time.Now()
-	bestIndividual, err := algorithm.Run()
+	bestIndividual, err := algorithm.Run(recv, recvEvery)
 	if err != nil {
 		log.Printf("Error running genetic algorithm: %v\n", err)
 		os.Exit(1)
