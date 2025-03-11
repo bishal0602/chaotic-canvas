@@ -1,10 +1,16 @@
 # chaotic-canvas
+<p align="center">
+ <img src="examples/afghan_girl.png" alt="Target Image" width="40%"/> 
+  &nbsp; &nbsp; &nbsp; &nbsp;
+ <img src="examples/afghan_girl50kgen.gif" alt="Evolution Process" width="40%"/>
+</p>
 
 <p align="center">
  <img src="examples/starry_night.png" alt="Target Image" width="40%"/> 
   &nbsp; &nbsp; &nbsp; &nbsp;
- <img src="examples/starry_night_13kgen.gif" alt="Evolution Process" width="40%"/>
+ <img src="examples/starry_night10kgen.gif" alt="Evolution Process" width="40%"/>
 </p>
+
 
 Chaotic Canvas uses genetic algorithms to evolve images. The idea is to start with a population of random images and gradually improve them to resemble a target image as closely as possible. It does this by applying genetic operations (selection, crossover, and mutation) over multiple generations to iteratively improve the population over multiple generations.
 
