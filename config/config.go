@@ -13,10 +13,10 @@ type Config struct {
 func Load() (*Config, error) {
 	cfg := &Config{}
 
-	flag.StringVar(&cfg.TargetImagePath, "target", "examples/starry_night.png", "Path to target image")
+	flag.StringVar(&cfg.TargetImagePath, "target", "examples/afghan_girl.png", "Path to target image")
 	flag.StringVar(&cfg.OutDir, "out", "output", "Output Directory")
 	flag.IntVar(&cfg.PopulationSize, "pop", 500, "Population size")
-	flag.IntVar(&cfg.Generations, "gen", 7000, "Number of generations")
+	flag.IntVar(&cfg.Generations, "gen", 10000, "Number of generations")
 	flag.Float64Var(&cfg.MutationRate, "mut", 0.02, "Mutation rate")
 
 	flag.Parse()
