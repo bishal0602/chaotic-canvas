@@ -113,13 +113,7 @@ func (ams *AdaptiveMutationStrategy) Update(population []*Individual, generation
 	// Mutation rate should not be strictly deterministic. Adding ±5% randomness
 	mutationRate *= 1.0 + (rand.Float64()*0.1 - 0.05)
 
-	// Clamp to min/max range
-	if mutationRate < ams.minMutationRate {
-		mutationRate = ams.minMutationRate
-	} else if mutationRate > ams.maxMutationRate {
-		mutationRate = ams.maxMutationRate
-	}
-	return mutationRate
+	return utils.Clamp(mutationRate, ams.minMutationRate, ams.maxMutationRate)
 }
 
 // Mutate creates a modified copy of the individual by adding random polygons.
@@ -145,9 +139,10 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 		go func(index int) {
 			defer wg.Done()
 			region := (child.Image.Bounds().Dx() + child.Image.Bounds().Dy())
-			region = utils.Min(region/int(ga.MutationRate*100.0), region/4)
+			divisor := ga.MutationRate * float64(randomBetween(100, utils.FloorPowerOfTen(region)))
+			region = region / int(utils.Max(divisor, 1)) // prevent divide by zero
+			region = utils.Min(region, region>>2)
 
-			// More diverse mutations when mutation rate is higher
 			numPoints := rand.Intn(4) + 3
 			if ga.MutationRate > 0.1 {
 				numPoints = rand.Intn(6) + 3 // Allow more complex polygons when stagnating
@@ -190,4 +185,11 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 	}
 
 	return child
+}
+
+func randomBetween(a, b int) int {
+	if a > b {
+		a, b = b, a // Swap if a > b to avoid errors
+	}
+	return rand.Intn(b-a+1) + a
 }

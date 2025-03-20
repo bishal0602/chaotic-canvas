@@ -34,3 +34,43 @@ func Abs[T Number](value T) T {
 	}
 	return value
 }
+
+// FloorPowerOfTen returns the largest power of ten that is less than or equal to n.
+func FloorPowerOfTen(n int) int {
+	if n <= 0 {
+		return 1 // return 1 for non-positive numbers
+	}
+
+	// Not using logarithmic operation bcz its expensive
+
+	// Fast path for the most common small ranges
+	if n < 10 {
+		return 1
+	}
+	if n < 100 {
+		return 10
+	}
+	if n < 1000 {
+		return 100
+	}
+	if n < 10000 {
+		return 1000
+	}
+	if n < 100000 {
+		return 10000
+	}
+	if n < 1000000 {
+		return 100000
+	}
+
+	// For medium to large values, use the division technique
+	value := uint64(n)
+	result := 1
+
+	for value >= 10 {
+		value /= 10
+		result *= 10
+	}
+
+	return result
+}
