@@ -10,7 +10,7 @@ import (
 
 	"github.com/bishal0602/chaotic-canvas/config"
 	"github.com/bishal0602/chaotic-canvas/genetic"
-	"github.com/bishal0602/chaotic-canvas/utils"
+	"github.com/bishal0602/chaotic-canvas/imageio"
 )
 
 func main() {
@@ -19,14 +19,17 @@ func main() {
 		log.Fatalf("Error loading config: %v\n", err)
 	}
 
-	log.Printf("Starting image evolution with:\n")
-	fmt.Printf("- Target image: %s\n", cfg.TargetImagePath)
-	fmt.Printf("- Output Directory: %s\n", cfg.OutDir)
-	fmt.Printf("- Population size: %d\n", cfg.PopulationSize)
-	fmt.Printf("- Generations: %d\n", cfg.Generations)
-	fmt.Printf("- Mutation rate: %.2f\n", cfg.MutationRate)
+	log.Printf(`Starting image evolution with:
+- Target image: %s
+- Output Directory: %s
+- Population size: %d
+- Generations: %d
+- Mutation rate: %.2f
+- Tournament size: %d`,
+		cfg.TargetImagePath, cfg.OutDir, cfg.PopulationSize, cfg.Generations, cfg.MutationRate, cfg.TournamentSize,
+	)
 
-	img, err := utils.ReadImage(cfg.TargetImagePath)
+	img, err := imageio.Read(cfg.TargetImagePath)
 	if err != nil {
 		log.Fatalf("error reading target image: %v", err)
 	}
@@ -40,7 +43,7 @@ func main() {
 	go func() {
 		for result := range recv {
 			outPath := filepath.Join(cfg.OutDir, fmt.Sprintf("best_gen_%d.png", result.Generation))
-			if err := utils.SaveImage(outPath, result.Img); err != nil {
+			if err := imageio.Save(outPath, result.Img); err != nil {
 				log.Printf("Error saving image (gen %d): %v\n", result.Generation, err)
 			} else {
 				log.Printf("Generation %d - Best fitness: %.2f - Mutation Rate: %.2f", result.Generation, result.Fitness, result.MutationRate)
@@ -49,7 +52,7 @@ func main() {
 		}
 	}()
 
-	algorithm, err := genetic.NewGeneticAlgorithm(img, cfg.PopulationSize, cfg.Generations, cfg.MutationRate)
+	algorithm, err := genetic.NewGeneticAlgorithm(img, cfg.PopulationSize, cfg.Generations, cfg.MutationRate, cfg.TournamentSize)
 	if err != nil {
 		log.Fatalf("Error initializing genetic algorithm: %v\n", err)
 	}
@@ -63,7 +66,7 @@ func main() {
 
 	// Save the final best individual
 	outPath := filepath.Join(cfg.OutDir, "final_result.png")
-	if err := utils.SaveImage(outPath, bestIndividual.Image); err != nil {
+	if err := imageio.Save(outPath, bestIndividual.Image); err != nil {
 		log.Fatalf("Error saving final image: %v\n", err)
 	}
 

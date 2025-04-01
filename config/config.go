@@ -8,6 +8,7 @@ type Config struct {
 	PopulationSize  int
 	Generations     int
 	MutationRate    float64
+	TournamentSize  int
 }
 
 func Load() (*Config, error) {
@@ -17,7 +18,8 @@ func Load() (*Config, error) {
 	flag.StringVar(&cfg.OutDir, "out", "output", "Output Directory")
 	flag.IntVar(&cfg.PopulationSize, "pop", 500, "Population size")
 	flag.IntVar(&cfg.Generations, "gen", 10000, "Number of generations")
-	flag.Float64Var(&cfg.MutationRate, "mut", 0.02, "Mutation rate")
+	flag.Float64Var(&cfg.MutationRate, "mut", 0.05, "Mutation rate")
+	flag.IntVar(&cfg.TournamentSize, "tour", 6, "Tournament selection size")
 
 	flag.Parse()
 	return cfg, nil

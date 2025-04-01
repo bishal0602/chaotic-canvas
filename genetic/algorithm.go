@@ -1,6 +1,7 @@
 package genetic
 
 import (
+	"errors"
 	"image"
 	"image/draw"
 	"math"
@@ -14,6 +15,8 @@ type GeneticAlgorithm struct {
 	PopulationSize int
 	Generations    int
 	MutationRate   float64
+	TournamentSize int
+	Population     []*Individual
 }
 
 type ImageResult struct {
@@ -23,37 +26,48 @@ type ImageResult struct {
 	MutationRate float64
 }
 
-func NewGeneticAlgorithm(target image.Image, popSize, generations int, mutationRate float64) (*GeneticAlgorithm, error) {
+func NewGeneticAlgorithm(target image.Image, popSize, generations int, mutationRate float64, tournamentSize int) (*GeneticAlgorithm, error) {
+	if target == nil || popSize <= 0 || generations <= 0 || mutationRate < 0 || mutationRate > 1 || tournamentSize <= 0 {
+		return nil, errors.New("invalid parameters for genetic algorithm")
+	}
+
 	bounds := target.Bounds()
 	targetRGBA := image.NewRGBA(bounds)
 	draw.Draw(targetRGBA, bounds, target, bounds.Min, draw.Src)
+
+	population := make([]*Individual, popSize)
+	for i := range population {
+		population[i] = NewIndividual(targetRGBA.Bounds().Dx(), targetRGBA.Bounds().Dy())
+		population[i].CalculateFitness(targetRGBA)
+	}
+	sort.Slice(population, func(i, j int) bool {
+		return population[i].Fitness < population[j].Fitness
+	})
 
 	return &GeneticAlgorithm{
 		TargetRGBA:     targetRGBA,
 		PopulationSize: popSize,
 		Generations:    generations,
 		MutationRate:   mutationRate,
+		TournamentSize: tournamentSize,
+		Population:     population,
 	}, nil
 }
 
 func (ga *GeneticAlgorithm) Run(recv chan<- ImageResult, recvEvery int) (*Individual, error) {
 	// Initialize
 	defer close(recv)
-	adaptiveMutation := NewAdaptiveMutationStrategy(ga.MutationRate)
-	population := make([]*Individual, ga.PopulationSize)
-	for i := range population {
-		population[i] = NewIndividual(ga.TargetRGBA.Bounds().Dx(), ga.TargetRGBA.Bounds().Dy())
-		population[i].CalculateFitness(ga.TargetRGBA)
-	}
+	mutationStrategy := NewAdaptiveMutationStrategy(ga.MutationRate)
 
 	bestFitness := math.Inf(1)
 	var bestIndividual *Individual
 
 	for gen := 0; gen < ga.Generations; gen++ {
-		ga.MutationRate = adaptiveMutation.Update(population, gen, ga.Generations)
+		ga.MutationRate = mutationStrategy.Update(ga.Population, gen, ga.Generations)
 		// Evolve the old population
-		population = ga.evolvePopulation(population)
-		currentBest := population[0]
+		newPopulation := ga.evolvePopulation(ga.Population)
+		currentBest := newPopulation[0]
+		ga.Population = newPopulation
 
 		if currentBest.Fitness < bestFitness {
 			bestFitness = currentBest.Fitness
@@ -95,8 +109,8 @@ func (ga *GeneticAlgorithm) evolvePopulation(population []*Individual) []*Indivi
 
 		for i := start; i < end; i += 2 {
 			go func(idx int) {
-				parent1 := TournamentSelect(population, 6)
-				parent2 := TournamentSelect(population, 6)
+				parent1 := TournamentSelect(population, ga.TournamentSize)
+				parent2 := TournamentSelect(population, ga.TournamentSize)
 
 				child1, child2 := ga.Crossover(parent1, parent2)
 				child1 = ga.Mutate(child1)

@@ -2,118 +2,103 @@ package genetic
 
 import (
 	"image"
+	"math"
 	"math/rand"
 	"sync"
 
-	"github.com/bishal0602/chaotic-canvas/utils"
+	"github.com/bishal0602/chaotic-canvas/mathutil"
 	"github.com/fogleman/gg"
 )
 
+// MutationHistory tracks fitness progress over time.
+type MutationHistory struct {
+	history      []float64
+	size         int
+	index        int
+	lastBest     float64
+	plateauCount int
+}
+
+// NewMutationHistory creates a history tracker.
+func NewMutationHistory(size int) *MutationHistory {
+	return &MutationHistory{
+		history: make([]float64, size),
+		size:    size,
+	}
+}
+
+// Record stores fitness and detects plateaus.
+func (mh *MutationHistory) Record(avgFitness, bestFitness float64) {
+	mh.history[mh.index] = avgFitness
+	mh.index = (mh.index + 1) % mh.size
+
+	if mh.lastBest > 0 && mathutil.Abs(bestFitness-mh.lastBest) < 0.01 {
+		mh.plateauCount++
+	} else {
+		mh.plateauCount = 0
+	}
+	mh.lastBest = bestFitness
+}
+
+// GetImprovementScore measures relative fitness progress.
+func (mh *MutationHistory) GetImprovementScore() float64 {
+	improvements := 0.0
+	for i := 0; i < mh.size-1; i++ {
+		cur := (mh.index - 1 - i + mh.size) % mh.size
+		prev := (cur - 1 + mh.size) % mh.size
+		improvements += (mh.history[cur] - mh.history[prev]) / mh.history[prev]
+	}
+	return improvements / float64(mh.size-1)
+}
+
 type AdaptiveMutationStrategy struct {
-	baseMutationRate  float64
-	diversityFactor   float64
-	minMutationRate   float64
-	maxMutationRate   float64
-	populationHistory []float64 // Stores just average fitness values, not entire population
-	historySize       int
-	historyIndex      int // Index for circular buffer implementation
-	plateauCounter    int // Counts generations with no improvement
-	lastBestFitness   float64
+	baseRate        float64
+	diversityFactor float64
+	minRate         float64
+	maxRate         float64
+	history         *MutationHistory
 }
 
 func NewAdaptiveMutationStrategy(baseMutationRate float64) *AdaptiveMutationStrategy {
 	return &AdaptiveMutationStrategy{
-		baseMutationRate:  baseMutationRate,
-		diversityFactor:   0.5,
-		minMutationRate:   0.02,
-		maxMutationRate:   0.2,
-		historySize:       10,
-		populationHistory: make([]float64, 10), // Pre-allocate with full size
-		historyIndex:      0,
-		plateauCounter:    0,
-		lastBestFitness:   -1,
+		baseRate:        baseMutationRate,
+		diversityFactor: 0.5,
+		minRate:         mathutil.Max(0.01, 0.2*baseMutationRate),
+		maxRate:         mathutil.Min(5.0*baseMutationRate, 0.4),
+		history:         NewMutationHistory(10),
 	}
 }
 
 // Update records the current generation's fitness and calculates the appropriate mutation rate
-func (ams *AdaptiveMutationStrategy) Update(population []*Individual, generation, maxGenerations int) float64 {
+func (ams *AdaptiveMutationStrategy) Update(pop []*Individual, gen, maxGen int) float64 {
 	// Calculate current average fitness
 	avgFitness := 0.0
-	for _, ind := range population {
+	for _, ind := range pop {
 		avgFitness += ind.Fitness
 	}
-	avgFitness /= float64(len(population))
+	avgFitness /= float64(len(pop))
+	bestFitness := pop[0].Fitness
+	ams.history.Record(avgFitness, bestFitness)
 
-	// Store in history using circular buffer (more efficient than slice operations)
-	ams.populationHistory[ams.historyIndex] = avgFitness
-	ams.historyIndex = (ams.historyIndex + 1) % ams.historySize
-
-	// Check for plateau
-	bestFitness := population[0].Fitness
-	if ams.lastBestFitness > 0 {
-		if utils.Abs(bestFitness-ams.lastBestFitness) < 0.01 {
-			ams.plateauCounter++
-		} else {
-			ams.plateauCounter = 0
-		}
-	}
-	ams.lastBestFitness = bestFitness
-
-	// Calculate progress
+	// Calculate stagnation (lack of progress)
 	stagnation := 0.0
-	if generation >= ams.historySize {
-		improvements := 0.0
-		// Calculate improvements using circular buffer
-		for i := 0; i < ams.historySize-1; i++ {
-			current := (ams.historyIndex - 1 - i + ams.historySize) % ams.historySize
-			previous := (current - 1 + ams.historySize) % ams.historySize
-
-			// Inverted calculation since lower fitness is better
-			relativeImprovement := (ams.populationHistory[current] - ams.populationHistory[previous]) / ams.populationHistory[previous]
-			improvements += relativeImprovement
-		}
-
-		avgImprovement := improvements / float64(ams.historySize-1)
-
+	if gen >= ams.history.size {
+		improvement := ams.history.GetImprovementScore()
 		// If improvement is very small, increase stagnation factor
-		if avgImprovement < 0.001 {
-			stagnation = 1.0 - (avgImprovement * 1000)
+		if improvement < 0.001 {
+			stagnation = 1.0 - (improvement * 1000)
 		}
 	}
 
-	// Calculate diversity - difference between best and average fitness
+	// Calculate diversity as difference between best and average fitness
 	diversity := 0.0
-	if len(population) > 0 && avgFitness > 0 {
-		// Inverted calculation since lower fitness is better
-		diversity = (bestFitness - avgFitness) / bestFitness
+	if len(pop) > 0 && avgFitness > 0 {
+		diversity = math.Abs(bestFitness-avgFitness) / bestFitness
 	}
 
-	// Calculate global progress (0.0 to 1.0)
-	globalProgress := float64(generation) / float64(maxGenerations)
+	progress := float64(gen) / float64(maxGen)
 
-	// Calculate mutation rate based on factors:
-	// 1. Higher when stagnating
-	// 2. Higher when diversity is low
-	// 3. Lower as we approach final generations
-	// 4. Higher when stuck on a plateau
-	mutationRate := ams.baseMutationRate
-	mutationRate *= (1.0 + stagnation*2.0)                      // Increase by up to 3x when stagnating
-	mutationRate *= (1.0 + (1.0-diversity)*ams.diversityFactor) // Increase when diversity is low
-	mutationRate *= (1.0 - globalProgress*0.7)                  // Gradually reduce to 30% of initial rate
-
-	// Increase mutation rate significantly if stuck on a plateau
-	if ams.plateauCounter > 5 {
-		plateauFactor := float64(ams.plateauCounter) / 10.0
-		if plateauFactor > 2.0 {
-			plateauFactor = 2.0
-		}
-		mutationRate *= (1.0 + plateauFactor)
-	}
-
-	// Mutation rate should not be strictly deterministic. Adding ±5% randomness
-	mutationRate *= 1.0 + (rand.Float64()*0.1 - 0.05)
-
-	return utils.Clamp(mutationRate, ams.minMutationRate, ams.maxMutationRate)
+	return ams.computeMutationRate(stagnation, diversity, progress)
 }
 
 // Mutate creates a modified copy of the individual by adding random polygons.
@@ -133,15 +118,25 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 	// Create a channel to collect polygons from goroutines
 	polygonChan := make(chan Polygon, iterations)
 
+	region := child.Image.Bounds().Dx() * child.Image.Bounds().Dy()
+	maxLimit := region >> 4 // At most 1/16 of the image area
+
+	// Log-based scaling to keep it adaptable
+	logSize := mathutil.FastLog10(region) + 1 // Prevent log(0)
+	floorPower := mathutil.FloorPowerOfTen(region)
+
 	var wg sync.WaitGroup
 	for i := 0; i < iterations; i++ {
 		wg.Add(1)
 		go func(index int) {
 			defer wg.Done()
-			region := (child.Image.Bounds().Dx() + child.Image.Bounds().Dy())
-			divisor := ga.MutationRate * float64(randomBetween(100, utils.FloorPowerOfTen(region)))
-			region = region / int(utils.Max(divisor, 1)) // prevent divide by zero
-			region = utils.Min(region, region>>2)
+
+			// Randomly scale mutation size within a reasonable range
+			scaleFactor := mathutil.RandomBetween(1, int(logSize*5))
+			divisor := ga.MutationRate * float64(mathutil.RandomBetween(50, floorPower))
+			regionLimit := (region / int(mathutil.Max(divisor, 1))) / scaleFactor
+			regionLimit = mathutil.Clamp(regionLimit, 1, maxLimit)
+			// fmt.Printf("scale: %v, divisor: %v, limit: %v, mut: %v\n", scaleFactor, divisor, regionLimit, ga.MutationRate)
 
 			numPoints := rand.Intn(4) + 3
 			if ga.MutationRate > 0.1 {
@@ -152,11 +147,11 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 			regionY := rand.Intn(child.Image.Bounds().Dy())
 			polygon := Polygon{
 				Points: make([]image.Point, numPoints),
-				Color:  utils.RandomRGBA(),
+				Color:  RandomRGBA(),
 			}
 			for j := 0; j < numPoints; j++ {
-				x := utils.Clamp(regionX+rand.Intn(2*region)-region, 0, child.Image.Bounds().Dx()-1)
-				y := utils.Clamp(regionY+rand.Intn(2*region)-region, 0, child.Image.Bounds().Dy()-1)
+				x := mathutil.Clamp(regionX+rand.Intn(2*regionLimit)-regionLimit, 0, child.Image.Bounds().Dx()-1)
+				y := mathutil.Clamp(regionY+rand.Intn(2*regionLimit)-regionLimit, 0, child.Image.Bounds().Dy()-1)
 				polygon.Points[j] = image.Point{X: x, Y: y}
 			}
 			// Send the polygon to the main thread instead of modifying the slice directly
@@ -170,7 +165,7 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 	}()
 
 	for polygon := range polygonChan {
-		child.Polygons = append(child.Polygons, polygon)
+		// child.Polygons = append(child.Polygons, polygon)
 		dc := gg.NewContextForRGBA(child.Image)
 		dc.SetRGBA255(int(polygon.Color.R), int(polygon.Color.G), int(polygon.Color.B), int(polygon.Color.A))
 		for j, point := range polygon.Points {
@@ -187,9 +182,28 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 	return child
 }
 
-func randomBetween(a, b int) int {
-	if a > b {
-		a, b = b, a // Swap if a > b to avoid errors
+// computeMutationRate adjusts mutation based on factors:
+// 1. Higher when stagnating
+// 2. Higher when diversity is low
+// 3. Lower as we approach final generations
+// 4. Higher when stuck on a plateau
+func (ams *AdaptiveMutationStrategy) computeMutationRate(stagnation, diversity, progress float64) float64 {
+	rate := ams.baseRate
+	rate *= 1.0 + stagnation*2.0
+	rate *= 1.0 + (1.0-diversity)*ams.diversityFactor
+	rate *= 1.0 - progress*0.7
+
+	// Increase mutation rate significantly if stuck on a plateau
+	if ams.history.plateauCount > 5 {
+		factor := float64(ams.history.plateauCount) / 10.0
+		if factor > 2.0 {
+			factor = 2.0
+		}
+		rate *= 1.0 + factor
 	}
-	return rand.Intn(b-a+1) + a
+
+	// Mutation rate should not be strictly deterministic. Adding ±5% randomness
+	rate *= 1.0 + (rand.Float64()*0.1 - 0.05)
+
+	return mathutil.Clamp(rate, ams.minRate, ams.maxRate)
 }

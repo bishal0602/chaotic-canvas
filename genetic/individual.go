@@ -9,8 +9,7 @@ import (
 	"runtime"
 	"sync"
 
-	"github.com/bishal0602/chaotic-canvas/utils"
-
+	"github.com/bishal0602/chaotic-canvas/mathutil"
 	"github.com/fogleman/gg"
 )
 
@@ -35,7 +34,7 @@ func NewIndividual(width, height int) *Individual {
 	}
 
 	// Create random background color
-	bgColor := utils.RandomRGBA()
+	bgColor := RandomRGBA()
 	draw.Draw(ind.Image, ind.Image.Bounds(), &image.Uniform{bgColor}, image.Point{}, draw.Src)
 
 	// Add random polygons
@@ -81,13 +80,13 @@ func (ind *Individual) createRandomPolygons() {
 
 		polygon := Polygon{
 			Points: make([]image.Point, numOfVertices),
-			Color:  utils.RandomRGBA(),
+			Color:  RandomRGBA(),
 		}
 
 		// Generate random points for the polygon
 		for j := 0; j < numOfVertices; j++ {
-			x := utils.Clamp(regionX+rand.Intn(2*region)-region, 0, ind.Image.Bounds().Dx()-1)
-			y := utils.Clamp(regionY+rand.Intn(2*region)-region, 0, ind.Image.Bounds().Dy()-1)
+			x := mathutil.Clamp(regionX+rand.Intn(2*region)-region, 0, ind.Image.Bounds().Dx()-1)
+			y := mathutil.Clamp(regionY+rand.Intn(2*region)-region, 0, ind.Image.Bounds().Dy()-1)
 			polygon.Points[j] = image.Point{X: x, Y: y}
 		}
 
