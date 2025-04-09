@@ -1,6 +1,8 @@
 package mathutil
 
-import "testing"
+import (
+	"testing"
+)
 
 func TestFloorPowerOfTen(t *testing.T) {
 	tests := []struct {
@@ -23,7 +25,7 @@ func TestFloorPowerOfTen(t *testing.T) {
 	for _, tt := range tests {
 		result := FloorPowerOfTen(tt.input)
 		if result != tt.expected {
-			t.Errorf("floorPowerOfTen(%v) = %d; want %d", tt.input, result, tt.expected)
+			t.Errorf("FloorPowerOfTen(%v) = %d; want %d", tt.input, result, tt.expected)
 		}
 	}
 }

@@ -17,7 +17,7 @@ Chaotic Canvas is a genetic algorithm-based image evolution framework. It starts
 
 ## Algorithm Overview
 
-The genetic algorithm implemented in Chaotic Canvas follows the flowchart below:
+The genetic algorithm implemented in this project follows the following flowchart:
 
 <p align="center">
  <img src="assets/flowchart.png" alt="Genetic Algorithm Flowchart" width="100%"/>
@@ -66,10 +66,8 @@ genetic
 ╰─ selection.go                # Selection strategy for parents.
 config
 ╰─ config.go                   # Configuration loader for CLI arguments.
-utils
-╰─ color.go                    # Utility functions for color generation.
-╰─ file.go                     # File I/O utilities.
-╰─ maths.go                    # Mathematical utility functions.
+imageio                        # Image I/O utilities.
+mathutil                       # Mathematical utility functions.
 ```
 
 

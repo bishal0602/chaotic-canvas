@@ -63,25 +63,3 @@ func FloorPowerOfTen(n int) int {
 
 	return result
 }
-
-// Fast integer approximation
-func FastLog10(n int) float64 {
-	if n <= 0 {
-		return 0
-	}
-
-	table := []float64{0, 0, 0.301, 0.477, 0.602, 0.699, 0.778, 0.845, 0.903, 0.954}
-	if n < 10 {
-		return table[n]
-	}
-
-	// Count the number of bits (≈ log2(n)), then scale to log10
-	bitLength := 0
-	x := n
-	for x > 0 {
-		x >>= 1
-		bitLength++
-	}
-
-	return float64(bitLength) * 0.3010299957 // Approximate log10
-}

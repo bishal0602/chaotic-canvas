@@ -2,6 +2,7 @@ package genetic
 
 import (
 	"image"
+	"log"
 	"math"
 	"math/rand"
 	"sync"
@@ -101,6 +102,42 @@ func (ams *AdaptiveMutationStrategy) Update(pop []*Individual, gen, maxGen int) 
 	return ams.computeMutationRate(stagnation, diversity, progress)
 }
 
+// MutationCache struct holds precomputed values
+type MutationCache struct {
+	LogSize    float64
+	FloorPower int
+	MaxLimit   int
+}
+type CacheManager struct {
+	cache sync.Map // Thread-safe cache
+}
+
+var cacheManager = &CacheManager{}
+
+func (cm *CacheManager) getMutationCache(region int) *MutationCache {
+	if cached, ok := cm.cache.Load(region); ok {
+		return cached.(*MutationCache)
+	}
+
+	logSize := 0.0
+	if region > 1 {
+		logSize = math.Log10(float64(region))
+	} else {
+		logSize = 1 // Prevent log(0) and logSize = 0
+	}
+	floorPower := mathutil.FloorPowerOfTen(region)
+	maxLimit := region >> 4 // At most 1/16 of the image area
+	log.Println("i am calculating")
+	cache := &MutationCache{
+		LogSize:    logSize,
+		FloorPower: floorPower,
+		MaxLimit:   maxLimit,
+	}
+	cm.cache.Store(region, cache)
+
+	return cache
+}
+
 // Mutate creates a modified copy of the individual by adding random polygons.
 func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 	if rand.Float64() > ga.MutationRate {
@@ -119,11 +156,11 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 	polygonChan := make(chan Polygon, iterations)
 
 	region := child.Image.Bounds().Dx() * child.Image.Bounds().Dy()
-	maxLimit := region >> 4 // At most 1/16 of the image area
-
-	// Log-based scaling to keep it adaptable
-	logSize := mathutil.FastLog10(region) + 1 // Prevent log(0)
-	floorPower := mathutil.FloorPowerOfTen(region)
+	// Retrieve precomputed mutation values from global cache
+	cache := cacheManager.getMutationCache(region)
+	maxLimit := cache.MaxLimit
+	logSize := cache.LogSize
+	floorPower := cache.FloorPower
 
 	var wg sync.WaitGroup
 	for i := 0; i < iterations; i++ {
@@ -165,7 +202,6 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 	}()
 
 	for polygon := range polygonChan {
-		// child.Polygons = append(child.Polygons, polygon)
 		dc := gg.NewContextForRGBA(child.Image)
 		dc.SetRGBA255(int(polygon.Color.R), int(polygon.Color.G), int(polygon.Color.B), int(polygon.Color.A))
 		for j, point := range polygon.Points {
@@ -188,10 +224,10 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 // 3. Lower as we approach final generations
 // 4. Higher when stuck on a plateau
 func (ams *AdaptiveMutationStrategy) computeMutationRate(stagnation, diversity, progress float64) float64 {
-	rate := ams.baseRate
-	rate *= 1.0 + stagnation*2.0
-	rate *= 1.0 + (1.0-diversity)*ams.diversityFactor
-	rate *= 1.0 - progress*0.7
+	stagnationFactor := 1.0 + stagnation*2.0
+	diversityFactor := 1.0 + (1.0-diversity)*ams.diversityFactor
+	progressFactor := 1.0 - progress*0.7
+	plateauFactor := 1.0
 
 	// Increase mutation rate significantly if stuck on a plateau
 	if ams.history.plateauCount > 5 {
@@ -199,11 +235,13 @@ func (ams *AdaptiveMutationStrategy) computeMutationRate(stagnation, diversity, 
 		if factor > 2.0 {
 			factor = 2.0
 		}
-		rate *= 1.0 + factor
+		plateauFactor = 1.0 + factor
 	}
 
 	// Mutation rate should not be strictly deterministic. Adding ±5% randomness
-	rate *= 1.0 + (rand.Float64()*0.1 - 0.05)
+	randomFactor := 1.0 + (rand.Float64()*0.1 - 0.05)
+
+	rate := ams.baseRate * stagnationFactor * diversityFactor * progressFactor * plateauFactor * randomFactor
 
 	return mathutil.Clamp(rate, ams.minRate, ams.maxRate)
 }
