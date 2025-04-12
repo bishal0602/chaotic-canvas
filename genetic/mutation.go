@@ -2,7 +2,6 @@ package genetic
 
 import (
 	"image"
-	"log"
 	"math"
 	"math/rand"
 	"sync"
@@ -127,7 +126,6 @@ func (cm *CacheManager) getMutationCache(region int) *MutationCache {
 	}
 	floorPower := mathutil.FloorPowerOfTen(region)
 	maxLimit := region >> 4 // At most 1/16 of the image area
-	log.Println("i am calculating")
 	cache := &MutationCache{
 		LogSize:    logSize,
 		FloorPower: floorPower,

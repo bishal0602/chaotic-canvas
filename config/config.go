@@ -9,6 +9,7 @@ type Config struct {
 	Generations     int
 	MutationRate    float64
 	TournamentSize  int
+	NoCompress      bool
 }
 
 func Load() (*Config, error) {
@@ -20,6 +21,7 @@ func Load() (*Config, error) {
 	flag.IntVar(&cfg.Generations, "gen", 10000, "Number of generations")
 	flag.Float64Var(&cfg.MutationRate, "mut", 0.05, "Mutation rate")
 	flag.IntVar(&cfg.TournamentSize, "tour", 6, "Tournament selection size")
+	flag.BoolVar(&cfg.NoCompress, "nocompress", false, "Switch to disable compress")
 
 	flag.Parse()
 	return cfg, nil

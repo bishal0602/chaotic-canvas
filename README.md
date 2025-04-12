@@ -66,7 +66,7 @@ genetic
 ╰─ selection.go                # Selection strategy for parents.
 config
 ╰─ config.go                   # Configuration loader for CLI arguments.
-imageio                        # Image I/O utilities.
+imageio                        # Image utilities.
 mathutil                       # Mathematical utility functions.
 ```
 
@@ -92,14 +92,15 @@ mathutil                       # Mathematical utility functions.
 
 ## Command-Line Arguments
 
-| Argument         | Description                              | Default Value            |
-|------------------|------------------------------------------|--------------------------|
-| `-target`        | Path to the target image                | `examples/afghan_girl.png` |
-| `-out`           | Output directory for generated images   | `output`                 |
-| `-pop`           | Population size                        | `500`                    |
-| `-gen`           | Number of generations                  | `10000`                  |
-| `-mut`           | Base mutation rate                     | `0.05`                   |
-| `-tour`          | Tournament selection size              | `6`                      |
+| Argument      | Description                                      | Default Value                  |
+|---------------|--------------------------------------------------|--------------------------------|
+| `-target`     | Path to the target image                         | `examples/afghan_girl.png`     |
+| `-out`        | Output directory for generated images            | `output`                       |
+| `-pop`        | Population size                                  | `500`                          |
+| `-gen`        | Number of generations                            | `10000`                        |
+| `-mut`        | Base mutation rate                               | `0.05`                         |
+| `-tour`       | Tournament selection size                        | `6`                            |
+| `-nocompress` | Disable resize compression (auto compression to a max of 540x540) | `false` |
 
 ## Example Usage
 

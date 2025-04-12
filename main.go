@@ -25,13 +25,17 @@ func main() {
 - Population size: %d
 - Generations: %d
 - Mutation rate: %.2f
-- Tournament size: %d`,
-		cfg.TargetImagePath, cfg.OutDir, cfg.PopulationSize, cfg.Generations, cfg.MutationRate, cfg.TournamentSize,
+- Tournament size: %d
+- Compress: %t`,
+		cfg.TargetImagePath, cfg.OutDir, cfg.PopulationSize, cfg.Generations, cfg.MutationRate, cfg.TournamentSize, !cfg.NoCompress,
 	)
 
 	img, err := imageio.Read(cfg.TargetImagePath)
 	if err != nil {
 		log.Fatalf("error reading target image: %v", err)
+	}
+	if !cfg.NoCompress {
+		img = imageio.Resize(img, 540)
 	}
 	// Create output directory for images
 	if err := os.MkdirAll(cfg.OutDir, 0755); err != nil {

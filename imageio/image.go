@@ -16,6 +16,7 @@ func Save(filePath string, img image.Image) error {
 	return png.Encode(file, img)
 }
 
+// Read reads an image from a file and returns the decoded image and its format.
 func Read(filePath string) (image.Image, error) {
 	file, err := os.Open(filePath)
 	if err != nil {
@@ -23,5 +24,9 @@ func Read(filePath string) (image.Image, error) {
 	}
 	defer file.Close()
 
-	return png.Decode(file)
+	img, _, err := image.Decode(file)
+	if err != nil {
+		return nil, err
+	}
+	return img, nil
 }
