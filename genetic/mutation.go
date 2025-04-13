@@ -10,6 +10,28 @@ import (
 	"github.com/fogleman/gg"
 )
 
+const (
+	// Mutation History
+	mutationHistorySize int = 10
+
+	// Adaptive Strategy Parameters
+	minMutationRateFloor     float64 = 0.01
+	minMutationRateScale     float64 = 0.2
+	maxMutationRateScale     float64 = 5.0
+	maxMutationRateCeiling   float64 = 0.4
+	defaultDiversityFactor   float64 = 0.5
+	plateauFitnessThreshold  float64 = 0.01
+	plateauDurationThreshold int     = 5
+
+	// Mutation Application Parameters
+	minMutationIterations              = 1
+	maxMutationIterationsBase          = 3
+	radicalMutationExtraIterations     = 3
+	minPolygonPoints               int = 3
+	maxPolygonPoints               int = 6
+	highMutationExtraPoints        int = 2
+)
+
 // MutationHistory tracks fitness progress over time.
 type MutationHistory struct {
 	history      []float64
@@ -32,7 +54,7 @@ func (mh *MutationHistory) Record(avgFitness, bestFitness float64) {
 	mh.history[mh.index] = avgFitness
 	mh.index = (mh.index + 1) % mh.size
 
-	if mh.lastBest > 0 && mathutil.Abs(bestFitness-mh.lastBest) < 0.01 {
+	if mh.lastBest > 0 && mathutil.Abs(bestFitness-mh.lastBest) < plateauFitnessThreshold {
 		mh.plateauCount++
 	} else {
 		mh.plateauCount = 0
@@ -52,20 +74,18 @@ func (mh *MutationHistory) GetImprovementScore() float64 {
 }
 
 type AdaptiveMutationStrategy struct {
-	baseRate        float64
-	diversityFactor float64
-	minRate         float64
-	maxRate         float64
-	history         *MutationHistory
+	baseRate float64
+	minRate  float64
+	maxRate  float64
+	history  *MutationHistory
 }
 
 func NewAdaptiveMutationStrategy(baseMutationRate float64) *AdaptiveMutationStrategy {
 	return &AdaptiveMutationStrategy{
-		baseRate:        baseMutationRate,
-		diversityFactor: 0.5,
-		minRate:         mathutil.Max(0.01, 0.2*baseMutationRate),
-		maxRate:         mathutil.Min(5.0*baseMutationRate, 0.4),
-		history:         NewMutationHistory(10),
+		baseRate: baseMutationRate,
+		minRate:  mathutil.Max(minMutationRateFloor, minMutationRateScale*baseMutationRate),
+		maxRate:  mathutil.Min(maxMutationRateCeiling, maxMutationRateScale*baseMutationRate),
+		history:  NewMutationHistory(mutationHistorySize),
 	}
 }
 
@@ -143,12 +163,14 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 	}
 
 	child := ind.CreateCopy()
-	iterations := rand.Intn(3) + 1
-
-	// Check if we should do a more radical mutation based on stagnation
-	if rand.Float64() < ga.MutationRate*2 && ga.MutationRate > 0.1 {
-		iterations += rand.Intn(3)
-	}
+	iterations := func() int {
+		it := mathutil.RandomBetween(minMutationIterations, maxMutationIterationsBase)
+		// Check if we should do a more radical mutation based on stagnation
+		if ga.MutationRate > 0.1 && rand.Float64() < ga.MutationRate*2 {
+			it += rand.Intn(radicalMutationExtraIterations)
+		}
+		return it
+	}()
 
 	// Create a channel to collect polygons from goroutines
 	polygonChan := make(chan Polygon, iterations)
@@ -173,10 +195,13 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 			regionLimit = mathutil.Clamp(regionLimit, 1, maxLimit)
 			// fmt.Printf("scale: %v, divisor: %v, limit: %v, mut: %v\n", scaleFactor, divisor, regionLimit, ga.MutationRate)
 
-			numPoints := rand.Intn(4) + 3
-			if ga.MutationRate > 0.1 {
-				numPoints = rand.Intn(6) + 3 // Allow more complex polygons when stagnating
-			}
+			numPoints := func() int {
+				n := mathutil.RandomBetween(minPolygonPoints, maxPolygonPoints)
+				if ga.MutationRate > 0.1 {
+					n += highMutationExtraPoints
+				}
+				return n
+			}()
 
 			regionX := rand.Intn(child.Image.Bounds().Dx())
 			regionY := rand.Intn(child.Image.Bounds().Dy())
@@ -223,12 +248,12 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 // 4. Higher when stuck on a plateau
 func (ams *AdaptiveMutationStrategy) computeMutationRate(stagnation, diversity, progress float64) float64 {
 	stagnationFactor := 1.0 + stagnation*2.0
-	diversityFactor := 1.0 + (1.0-diversity)*ams.diversityFactor
+	diversityFactor := 1.0 + (1.0-diversity)*0.5
 	progressFactor := 1.0 - progress*0.7
 	plateauFactor := 1.0
 
 	// Increase mutation rate significantly if stuck on a plateau
-	if ams.history.plateauCount > 5 {
+	if ams.history.plateauCount > plateauDurationThreshold {
 		factor := float64(ams.history.plateauCount) / 10.0
 		if factor > 2.0 {
 			factor = 2.0

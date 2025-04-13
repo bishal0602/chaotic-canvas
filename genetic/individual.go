@@ -15,9 +15,8 @@ import (
 
 // Individual represents a candidate solution in the genetic algorithm
 type Individual struct {
-	Fitness  float64
-	Image    *image.RGBA
-	Polygons []Polygon
+	Fitness float64
+	Image   *image.RGBA
 }
 
 // Polygon represents a colored polygon
@@ -46,23 +45,12 @@ func NewIndividual(width, height int) *Individual {
 // CreateCopy creates a deep copy of the individual
 func (ind *Individual) CreateCopy() *Individual {
 	newInd := &Individual{
-		Fitness:  ind.Fitness,
-		Image:    image.NewRGBA(image.Rect(0, 0, ind.Image.Bounds().Dx(), ind.Image.Bounds().Dy())),
-		Polygons: make([]Polygon, len(ind.Polygons)),
+		Fitness: ind.Fitness,
+		Image:   image.NewRGBA(image.Rect(0, 0, ind.Image.Bounds().Dx(), ind.Image.Bounds().Dy())),
 	}
 
 	// Copy image pixels
 	draw.Draw(newInd.Image, newInd.Image.Bounds(), ind.Image, image.Point{}, draw.Src)
-
-	// Copy polygons
-	for i, poly := range ind.Polygons {
-		newPoly := Polygon{
-			Points: make([]image.Point, len(poly.Points)),
-			Color:  poly.Color,
-		}
-		copy(newPoly.Points, poly.Points)
-		newInd.Polygons[i] = newPoly
-	}
 
 	return newInd
 }
@@ -89,8 +77,6 @@ func (ind *Individual) createRandomPolygons() {
 			y := mathutil.Clamp(regionY+rand.Intn(2*region)-region, 0, ind.Image.Bounds().Dy()-1)
 			polygon.Points[j] = image.Point{X: x, Y: y}
 		}
-
-		ind.Polygons = append(ind.Polygons, polygon)
 
 		// Draw the polygon
 		dc := gg.NewContextForRGBA(ind.Image)

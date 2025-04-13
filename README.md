@@ -29,7 +29,7 @@ The genetic algorithm implemented in this project follows the following flowchar
    - A population of random images is generated. Each image is created by using a random background colors and adding polygons with random colors and positions.
 
 2. **Fitness Evaluation**:
-   - The fitness of each individual is calculated using **Mean Squared Error (MSE)** between the individual's image and the target image. Lower fitness values indicate a closer match to the target.
+   - The fitness of each individual is calculated by computing the average Euclidean distance between the RGBA values of the individual's image and the target image. Lower fitness values indicate a closer match to the target.
 
 3. **Selection**:
    - **Tournament Selection** is used to choose parents for reproduction. A subset of the population is randomly selected, and the individual with the best fitness in the subset is chosen as a parent. This method balances exploration and exploitation by introducing randomness while favoring fitter individuals.

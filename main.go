@@ -13,6 +13,11 @@ import (
 	"github.com/bishal0602/chaotic-canvas/imageio"
 )
 
+const (
+	compressedImageDimension       int = 540
+	defaultProgressUpdateFrequency int = 100
+)
+
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
@@ -35,7 +40,7 @@ func main() {
 		log.Fatalf("error reading target image: %v", err)
 	}
 	if !cfg.NoCompress {
-		img = imageio.Resize(img, 540)
+		img = imageio.Resize(img, compressedImageDimension)
 	}
 	// Create output directory for images
 	if err := os.MkdirAll(cfg.OutDir, 0755); err != nil {
@@ -43,7 +48,6 @@ func main() {
 	}
 
 	recv := make(chan genetic.ImageResult)
-	recvEvery := 100
 	go func() {
 		for result := range recv {
 			outPath := filepath.Join(cfg.OutDir, fmt.Sprintf("best_gen_%d.png", result.Generation))
@@ -62,7 +66,7 @@ func main() {
 	}
 
 	startTime := time.Now()
-	bestIndividual, err := algorithm.Run(recv, recvEvery)
+	bestIndividual, err := algorithm.Run(recv, defaultProgressUpdateFrequency)
 	if err != nil {
 		log.Fatalf("Error running genetic algorithm: %v\n", err)
 	}

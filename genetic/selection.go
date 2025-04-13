@@ -4,8 +4,11 @@ import (
 	"math/rand"
 )
 
+const (
+	numTournaments = 4 // Number of mini-tournaments to run in TournamentSelect
+)
+
 func TournamentSelect(population []*Individual, tournamentSize int) *Individual {
-	numTournaments := 4
 	var best *Individual
 
 	for i := 0; i < numTournaments; i++ {

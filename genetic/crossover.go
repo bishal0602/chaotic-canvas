@@ -8,15 +8,26 @@ import (
 	"sync"
 )
 
+const (
+	blendCrossoverThreshold    = 0.3
+	pointCrossoverThreshold    = 0.7 // blend + point
+	gaussianCrossoverThreshold = 0.9 // blend + point + gaussian
+
+	patchCrossoverSwapProbability = 0.3
+	patchSize                     = 8
+
+	gaussianNoiseScale = 0.1
+)
+
 func (ga *GeneticAlgorithm) Crossover(parent1 *Individual, parent2 *Individual) (*Individual, *Individual) {
 	var child1, child2 *Individual
 
 	r := rand.Float64()
-	if r < 0.3 {
+	if r < blendCrossoverThreshold {
 		child1, child2 = blendCrossover(parent1, parent2)
-	} else if r < 0.7 {
+	} else if r < pointCrossoverThreshold {
 		child1, child2 = crossoverPoint(parent1, parent2)
-	} else if r < 0.9 {
+	} else if r < gaussianCrossoverThreshold {
 		child1, child2 = gaussianPerturbationCrossover(parent1, parent2)
 	} else {
 		child1, child2 = patchCrossover(parent1, parent2)
@@ -131,7 +142,7 @@ func gaussianPerturbationCrossover(parent1, parent2 *Individual) (*Individual, *
 	}
 
 	bounds := child1.Image.Bounds()
-	noise := rand.NormFloat64() * 0.1 // Small Gaussian noise
+	noise := rand.NormFloat64() * gaussianNoiseScale // Small Gaussian noise
 
 	for y := 0; y < bounds.Dy(); y++ {
 		i := y * child1.Image.Stride
@@ -153,7 +164,7 @@ func gaussianPerturbationCrossover(parent1, parent2 *Individual) (*Individual, *
 // patchCrossover creates two children by swapping rectangular patches between the parents.
 // It works by:
 // - Creating exact copies of both parents
-// - Dividing the image into small patches (8x8 pixels)
+// - Dividing the image into small patches of patchSize
 // - For each patch, having a % chance to swap that patch between the children
 // This method preserves local structure within patches while creating diversity
 // by recombining different regions from both parents.
@@ -162,11 +173,10 @@ func patchCrossover(parent1, parent2 *Individual) (*Individual, *Individual) {
 	child2 := parent2.CreateCopy()
 
 	bounds := child1.Image.Bounds()
-	patchSize := 8
 
 	for y := 0; y < bounds.Dy(); y += patchSize {
 		for x := 0; x < bounds.Dx(); x += patchSize {
-			if rand.Float64() < 0.3 {
+			if rand.Float64() < patchCrossoverSwapProbability {
 				for dy := 0; dy < patchSize && (y+dy) < bounds.Dy(); dy++ {
 					for dx := 0; dx < patchSize && (x+dx) < bounds.Dx(); dx++ {
 						idx := ((y+dy)*bounds.Dx() + (x + dx)) * 4
