@@ -139,8 +139,6 @@ func (ga *GeneticAlgorithm) evolvePopulation(population []*Individual) []*Indivi
 			newPopulation[result.indices[0]] = result.individuals[0]
 			newPopulation[result.indices[1]] = result.individuals[1]
 		}
-
-		runtime.GC()
 	}
 
 	// Handle remaining odd population member if any

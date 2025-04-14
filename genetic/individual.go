@@ -95,7 +95,7 @@ func (ind *Individual) createRandomPolygons() {
 	}
 }
 
-// CalculateFitness calculates the fitness using parallel processing
+// CalculateFitness calculates the fitness
 func (ind *Individual) CalculateFitness(targetImage *image.RGBA) {
 	bounds := targetImage.Bounds()
 	width, height := bounds.Dx(), bounds.Dy()

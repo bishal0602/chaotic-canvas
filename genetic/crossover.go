@@ -132,14 +132,8 @@ func crossoverPoint(parent1, parent2 *Individual) (*Individual, *Individual) {
 // - Child2 receives the parents' average pixel values minus small Gaussian noise
 // The results are clamped to ensure valid pixel values (0-255)
 func gaussianPerturbationCrossover(parent1, parent2 *Individual) (*Individual, *Individual) {
-	child1 := &Individual{
-		Fitness: math.Inf(1),
-		Image:   image.NewRGBA(parent1.Image.Bounds()),
-	}
-	child2 := &Individual{
-		Fitness: math.Inf(1),
-		Image:   image.NewRGBA(parent1.Image.Bounds()),
-	}
+	child1 := parent1.CreateCopy()
+	child2 := parent2.CreateCopy()
 
 	bounds := child1.Image.Bounds()
 	noise := rand.NormFloat64() * gaussianNoiseScale // Small Gaussian noise
