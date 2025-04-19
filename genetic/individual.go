@@ -44,15 +44,20 @@ func NewIndividual(width, height int) *Individual {
 
 // CreateCopy creates a deep copy of the individual
 func (ind *Individual) CreateCopy() *Individual {
-	newInd := &Individual{
+	newImg := image.NewRGBA(ind.Image.Bounds())
+	copy(newImg.Pix, ind.Image.Pix)
+
+	return &Individual{
 		Fitness: ind.Fitness,
-		Image:   image.NewRGBA(image.Rect(0, 0, ind.Image.Bounds().Dx(), ind.Image.Bounds().Dy())),
+		Image:   newImg,
 	}
+}
 
-	// Copy image pixels
-	draw.Draw(newInd.Image, newInd.Image.Bounds(), ind.Image, image.Point{}, draw.Src)
-
-	return newInd
+// CreateBlankCopy creates a copy of the individual with only a blank image of the same size.
+func (ind *Individual) CreateBlankCopy() *Individual {
+	return &Individual{
+		Image: image.NewRGBA(image.Rect(0, 0, ind.Image.Bounds().Dx(), ind.Image.Bounds().Dy())),
+	}
 }
 
 // createRandomPolygons creates random polygons for the individual
@@ -128,7 +133,7 @@ func (ind *Individual) CalculateFitness(targetImage *image.RGBA) {
 		totalDifference += diff
 	}
 
-	ind.Fitness = totalDifference / float64(width*height)
+	ind.Fitness = math.Sqrt(totalDifference / float64(width*height))
 }
 
 func calculateRegionFitness(img1, img2 *image.RGBA, startY, endY int) float64 {
@@ -149,9 +154,38 @@ func calculateRegionFitness(img1, img2 *image.RGBA, startY, endY int) float64 {
 			bDiff := float64(int(b1) - int(b2))
 			aDiff := float64(int(a1) - int(a2))
 
-			difference += math.Sqrt(rDiff*rDiff + gDiff*gDiff + bDiff*bDiff + aDiff*aDiff)
+			difference += rDiff*rDiff + gDiff*gDiff + bDiff*bDiff + aDiff*aDiff
 		}
 	}
 
 	return difference
+}
+
+func (ind *Individual) CalculateFitnessSequential(targetImage *image.RGBA) {
+	width := targetImage.Bounds().Dx()
+	height := targetImage.Bounds().Dy()
+
+	var totalDifference float64
+	img1Pix := ind.Image.Pix
+	img2Pix := targetImage.Pix
+
+	stride := ind.Image.Stride
+	for y := 0; y < height; y++ {
+		i := y * stride
+		for x := 0; x < width; x++ {
+			idx := i + x*4
+
+			r1, g1, b1, a1 := img1Pix[idx], img1Pix[idx+1], img1Pix[idx+2], img1Pix[idx+3]
+			r2, g2, b2, a2 := img2Pix[idx], img2Pix[idx+1], img2Pix[idx+2], img2Pix[idx+3]
+
+			rDiff := float64(int(r1) - int(r2))
+			gDiff := float64(int(g1) - int(g2))
+			bDiff := float64(int(b1) - int(b2))
+			aDiff := float64(int(a1) - int(a2))
+
+			totalDifference += math.Sqrt(rDiff*rDiff + gDiff*gDiff + bDiff*bDiff + aDiff*aDiff)
+		}
+	}
+
+	ind.Fitness = totalDifference / float64(width*height)
 }

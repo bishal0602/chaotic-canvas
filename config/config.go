@@ -14,6 +14,7 @@ type Config struct {
 	MutationRate    float64
 	TournamentSize  int
 	NoCompress      bool
+	EnablePprof     bool
 }
 
 func Load() (*Config, error) {
@@ -26,6 +27,7 @@ func Load() (*Config, error) {
 	flag.Float64Var(&cfg.MutationRate, "mut", 0.05, "Mutation rate")
 	flag.IntVar(&cfg.TournamentSize, "tour", 6, "Tournament selection size")
 	flag.BoolVar(&cfg.NoCompress, "nocompress", false, "Switch to disable compress")
+	flag.BoolVar(&cfg.EnablePprof, "pprof", false, "Enable pprof profiling")
 
 	flag.Parse()
 

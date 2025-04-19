@@ -62,7 +62,7 @@ func (ga *GeneticAlgorithm) Run(recv chan<- ImageResult, recvEvery int) (*Indivi
 	bestFitness := math.Inf(1)
 	var bestIndividual *Individual
 
-	for gen := 0; gen < ga.Generations; gen++ {
+	for gen := 1; gen <= ga.Generations; gen++ {
 		ga.MutationRate = mutationStrategy.Update(ga.Population, gen, ga.Generations)
 		// Evolve the old population
 		newPopulation := ga.evolvePopulation(ga.Population)
@@ -71,11 +71,11 @@ func (ga *GeneticAlgorithm) Run(recv chan<- ImageResult, recvEvery int) (*Indivi
 
 		if currentBest.Fitness < bestFitness {
 			bestFitness = currentBest.Fitness
-			bestIndividual = currentBest.CreateCopy()
+			bestIndividual = currentBest
 		}
 
 		// Send progress periodically
-		if gen%recvEvery == 0 || gen == ga.Generations-1 {
+		if gen%recvEvery == 0 || gen == 1 {
 			recv <- ImageResult{
 				Generation:   gen,
 				Img:          bestIndividual.Image,
@@ -124,8 +124,12 @@ func (ga *GeneticAlgorithm) evolvePopulation(population []*Individual) []*Indivi
 				sort.Slice(candidates[:], func(i, j int) bool {
 					return candidates[i].Fitness < candidates[j].Fitness
 				})
-				result[0] = candidates[0].CreateCopy()
-				result[1] = candidates[1].CreateCopy()
+
+				// removing CreateCopy here causes ~73% less allocations
+				// since we are always using CreateCopy before modifying Individuals
+				// it is safe to remove it from here
+				result[0] = candidates[0]
+				result[1] = candidates[1]
 
 				batchChan <- struct {
 					indices     [2]int

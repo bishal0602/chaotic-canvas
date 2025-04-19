@@ -1,11 +1,11 @@
 package genetic
 
 import (
-	"image"
-	"math"
 	"math/rand"
 	"runtime"
 	"sync"
+
+	"github.com/bishal0602/chaotic-canvas/mathutil"
 )
 
 const (
@@ -38,14 +38,8 @@ func (ga *GeneticAlgorithm) Crossover(parent1 *Individual, parent2 *Individual) 
 // blendCrossover performs a blend crossover operation between two parent individuals.
 // It creates two children by interpolating pixel values between parents using a random alpha value.
 func blendCrossover(parent1, parent2 *Individual) (*Individual, *Individual) {
-	child1 := &Individual{
-		Fitness: math.Inf(1),
-		Image:   image.NewRGBA(parent1.Image.Bounds()),
-	}
-	child2 := &Individual{
-		Fitness: math.Inf(1),
-		Image:   image.NewRGBA(parent1.Image.Bounds()),
-	}
+	child1 := parent1.CreateBlankCopy()
+	child2 := parent2.CreateBlankCopy()
 
 	bounds := child1.Image.Bounds()
 	height := bounds.Dy()
@@ -88,14 +82,8 @@ func blendCrossover(parent1, parent2 *Individual) (*Individual, *Individual) {
 //   - Vertical: Takes left portion from parent1 and right portion from parent2 for child1
 //     Takes left portion from parent2 and right portion from parent1 for child2
 func crossoverPoint(parent1, parent2 *Individual) (*Individual, *Individual) {
-	child1 := &Individual{
-		Fitness: math.Inf(1),
-		Image:   image.NewRGBA(parent1.Image.Bounds()),
-	}
-	child2 := &Individual{
-		Fitness: math.Inf(1),
-		Image:   image.NewRGBA(parent1.Image.Bounds()),
-	}
+	child1 := parent1.CreateBlankCopy()
+	child2 := parent2.CreateBlankCopy()
 
 	isHorizontal := rand.Float64() <= 0.5
 	bounds := child1.Image.Bounds()
@@ -132,23 +120,42 @@ func crossoverPoint(parent1, parent2 *Individual) (*Individual, *Individual) {
 // - Child2 receives the parents' average pixel values minus small Gaussian noise
 // The results are clamped to ensure valid pixel values (0-255)
 func gaussianPerturbationCrossover(parent1, parent2 *Individual) (*Individual, *Individual) {
-	child1 := parent1.CreateCopy()
-	child2 := parent2.CreateCopy()
+	child1 := parent1.CreateBlankCopy()
+	child2 := parent2.CreateBlankCopy()
 
 	bounds := child1.Image.Bounds()
-	noise := rand.NormFloat64() * gaussianNoiseScale // Small Gaussian noise
 
 	for y := 0; y < bounds.Dy(); y++ {
 		i := y * child1.Image.Stride
+
+		noise := rand.Float64() * gaussianNoiseScale // Small Gaussian noise
+
 		for x := 0; x < bounds.Dx(); x++ {
 			idx := i + x*4
-			for j := 0; j < 4; j++ {
-				p1 := float64(parent1.Image.Pix[idx+j])
-				p2 := float64(parent2.Image.Pix[idx+j])
-				mean := (p1 + p2) / 2.0
-				child1.Image.Pix[idx+j] = uint8(math.Min(255, math.Max(0, mean+noise)))
-				child2.Image.Pix[idx+j] = uint8(math.Min(255, math.Max(0, mean-noise)))
-			}
+
+			// using bit-wise operation instead of loops per channel is ~11% faster with same allocs
+			// Access the entire 4-byte pixel for both parents at once
+			p1 := uint32(parent1.Image.Pix[idx]) | uint32(parent1.Image.Pix[idx+1])<<8 | uint32(parent1.Image.Pix[idx+2])<<16 | uint32(parent1.Image.Pix[idx+3])<<24
+			p2 := uint32(parent2.Image.Pix[idx]) | uint32(parent2.Image.Pix[idx+1])<<8 | uint32(parent2.Image.Pix[idx+2])<<16 | uint32(parent2.Image.Pix[idx+3])<<24
+
+			mean := (p1 + p2) / 2
+
+			// Extract individual channels from the mean
+			meanR := uint8(mean & 0xFF)
+			meanG := uint8((mean >> 8) & 0xFF)
+			meanB := uint8((mean >> 16) & 0xFF)
+			meanA := uint8((mean >> 24) & 0xFF)
+
+			// Apply Gaussian noise
+			child1.Image.Pix[idx] = uint8(mathutil.Clamp(float64(meanR)+noise, 0, 255))
+			child1.Image.Pix[idx+1] = uint8(mathutil.Clamp(float64(meanG)+noise, 0, 255))
+			child1.Image.Pix[idx+2] = uint8(mathutil.Clamp(float64(meanB)+noise, 0, 255))
+			child1.Image.Pix[idx+3] = uint8(mathutil.Clamp(float64(meanA)+noise, 0, 255))
+
+			child2.Image.Pix[idx] = uint8(mathutil.Clamp(float64(meanR)-noise, 0, 255))
+			child2.Image.Pix[idx+1] = uint8(mathutil.Clamp(float64(meanG)-noise, 0, 255))
+			child2.Image.Pix[idx+2] = uint8(mathutil.Clamp(float64(meanB)-noise, 0, 255))
+			child2.Image.Pix[idx+3] = uint8(mathutil.Clamp(float64(meanA)-noise, 0, 255))
 		}
 	}
 

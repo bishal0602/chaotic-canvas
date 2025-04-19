@@ -172,9 +172,6 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 		return it
 	}()
 
-	// Create a channel to collect polygons from goroutines
-	polygonChan := make(chan Polygon, iterations)
-
 	region := child.Image.Bounds().Dx() * child.Image.Bounds().Dy()
 	// Retrieve precomputed mutation values from global cache
 	cache := cacheManager.getMutationCache(region)
@@ -182,50 +179,38 @@ func (ga *GeneticAlgorithm) Mutate(ind *Individual) *Individual {
 	logSize := cache.LogSize
 	floorPower := cache.FloorPower
 
-	var wg sync.WaitGroup
+	dc := gg.NewContextForRGBA(child.Image)
+
 	for i := 0; i < iterations; i++ {
-		wg.Add(1)
-		go func(index int) {
-			defer wg.Done()
+		// Randomly scale mutation size within a reasonable range
+		scaleFactor := mathutil.RandomBetween(1, int(logSize*5))
+		divisor := ga.MutationRate * float64(mathutil.RandomBetween(50, floorPower))
+		regionLimit := (region / int(mathutil.Max(divisor, 1))) / scaleFactor
+		regionLimit = mathutil.Clamp(regionLimit, 1, maxLimit)
+		// fmt.Printf("scale: %v, divisor: %v, limit: %v, mut: %v\n", scaleFactor, divisor, regionLimit, ga.MutationRate)
 
-			// Randomly scale mutation size within a reasonable range
-			scaleFactor := mathutil.RandomBetween(1, int(logSize*5))
-			divisor := ga.MutationRate * float64(mathutil.RandomBetween(50, floorPower))
-			regionLimit := (region / int(mathutil.Max(divisor, 1))) / scaleFactor
-			regionLimit = mathutil.Clamp(regionLimit, 1, maxLimit)
-			// fmt.Printf("scale: %v, divisor: %v, limit: %v, mut: %v\n", scaleFactor, divisor, regionLimit, ga.MutationRate)
-
-			numPoints := func() int {
-				n := mathutil.RandomBetween(minPolygonPoints, maxPolygonPoints)
-				if ga.MutationRate > 0.1 {
-					n += highMutationExtraPoints
-				}
-				return n
-			}()
-
-			regionX := rand.Intn(child.Image.Bounds().Dx())
-			regionY := rand.Intn(child.Image.Bounds().Dy())
-			polygon := Polygon{
-				Points: make([]image.Point, numPoints),
-				Color:  RandomRGBA(),
+		numPoints := func() int {
+			n := mathutil.RandomBetween(minPolygonPoints, maxPolygonPoints)
+			if ga.MutationRate > 0.1 {
+				n += highMutationExtraPoints
 			}
-			for j := 0; j < numPoints; j++ {
-				x := mathutil.Clamp(regionX+rand.Intn(2*regionLimit)-regionLimit, 0, child.Image.Bounds().Dx()-1)
-				y := mathutil.Clamp(regionY+rand.Intn(2*regionLimit)-regionLimit, 0, child.Image.Bounds().Dy()-1)
-				polygon.Points[j] = image.Point{X: x, Y: y}
-			}
-			// Send the polygon to the main thread instead of modifying the slice directly
-			polygonChan <- polygon
-		}(i)
-	}
+			return n
+		}()
 
-	go func() {
-		wg.Wait()
-		close(polygonChan)
-	}()
+		regionX := rand.Intn(child.Image.Bounds().Dx())
+		regionY := rand.Intn(child.Image.Bounds().Dy())
 
-	for polygon := range polygonChan {
-		dc := gg.NewContextForRGBA(child.Image)
+		polygon := Polygon{
+			Points: make([]image.Point, numPoints),
+			Color:  RandomRGBA(),
+		}
+
+		for j := 0; j < numPoints; j++ {
+			x := mathutil.Clamp(regionX+rand.Intn(2*regionLimit)-regionLimit, 0, child.Image.Bounds().Dx()-1)
+			y := mathutil.Clamp(regionY+rand.Intn(2*regionLimit)-regionLimit, 0, child.Image.Bounds().Dy()-1)
+			polygon.Points[j] = image.Point{X: x, Y: y}
+		}
+
 		dc.SetRGBA255(int(polygon.Color.R), int(polygon.Color.G), int(polygon.Color.B), int(polygon.Color.A))
 		for j, point := range polygon.Points {
 			if j == 0 {

@@ -9,7 +9,7 @@
 <p align="center">
  <img src="examples/starry_night.png" alt="Target Image" width="40%"/> 
   &nbsp; &nbsp; &nbsp; &nbsp;
- <img src="assets/starry_night10kgen.gif" alt="Evolution Process" width="40%"/>
+ <img src="assets/starry_night13kgen.gif" alt="Evolution Process" width="40%"/>
 </p>
 
 Chaotic Canvas is a genetic algorithm-based image evolution framework. It starts with a population of random images and iteratively evolves them to resemble a target image by applying genetic operations: selection, crossover, and mutation. The fitness of each individual is evaluated based on how closely it matches the target image, and the best candidates are selected for reproduction. Over successive generations, the population converges toward the target image.
@@ -92,15 +92,17 @@ mathutil                       # Mathematical utility functions.
 
 ## Command-Line Arguments
 
-| Argument      | Description                                      | Default Value                  |
-|---------------|--------------------------------------------------|--------------------------------|
-| `-target`     | Path to the target image                         | `examples/afghan_girl.png`     |
-| `-out`        | Output directory for generated images            | `output`                       |
-| `-pop`        | Population size                                  | `500`                          |
-| `-gen`        | Number of generations                            | `10000`                        |
-| `-mut`        | Base mutation rate                               | `0.05`                         |
-| `-tour`       | Tournament selection size                        | `6`                            |
-| `-nocompress` | Disable resize compression (auto compression to a max of 540x540) | `false` |
+| Argument      | Description                                               | Default Value                  |
+|---------------|-----------------------------------------------------------|--------------------------------|
+| `-target`    | Path to the target image                                 | `examples/afghan_girl.png`    |
+| `-out`        | Output directory for generated images                     | `output`                       |
+| `-pop`        | Population size                                           | `500`                          |
+| `-gen`        | Number of generations                                     | `10000`                        |
+| `-mut`        | Base mutation rate                                        | `0.05`                         |
+| `-tour`       | Tournament selection size                                 | `6`                            |
+| `-nocompress` | Disable resize compression (auto compression to a max of 540x540) | `false`                        |
+| `-pprof`      | Enable pprof profiling                                    | `false`                        |
+
 
 ## Example Usage
 
@@ -109,4 +111,5 @@ To evolve an image with a population size of 500 for 10000 generations:
 go run . -target="examples/starry_night.png" -out="output" -pop=500 -gen=10000 -mut="0.1"
 ```
 The output directory will contain intermediate images (e.g., `best_gen_100.png`) and the final evolved image (`final_result.png`).
+````
 

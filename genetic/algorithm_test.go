@@ -130,3 +130,31 @@ func createCheckerPattern(width, height, size int) *image.RGBA {
 
 	return img
 }
+
+var result *Individual
+
+func BenchmarkCreateCopy(b *testing.B) {
+	ind := &Individual{
+		Fitness: 42.0,
+		Image:   createCheckerPattern(540, 540, 3),
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		result = ind.CreateCopy()
+	}
+}
+
+func BenchmarkCreateBlankCopy(b *testing.B) {
+	ind := &Individual{
+		Fitness: 42.0,
+		Image:   createCheckerPattern(540, 540, 3),
+	}
+
+	b.ResetTimer()
+	b.ReportAllocs()
+	for i := 0; i < b.N; i++ {
+		result = ind.CreateBlankCopy()
+	}
+}

@@ -4,6 +4,8 @@ import (
 	"fmt"
 
 	"log"
+	"net/http"
+	_ "net/http/pprof"
 	"os"
 	"path/filepath"
 	"time"
@@ -14,14 +16,24 @@ import (
 )
 
 const (
-	compressedImageDimension       int = 540
-	defaultProgressUpdateFrequency int = 100
+	compressedImageDimension       int    = 540
+	defaultProgressUpdateFrequency int    = 100
+	pprofAddr                      string = "localhost:6060"
 )
 
 func main() {
 	cfg, err := config.Load()
 	if err != nil {
 		log.Fatalf("Error loading config: %v\n", err)
+	}
+
+	if cfg.EnablePprof {
+		go func() {
+			log.Printf("starting pprof on http://%s/debug/pprof", pprofAddr)
+			if err := http.ListenAndServe(pprofAddr, nil); err != nil {
+				log.Fatalf("pprof server failed to start %v", err)
+			}
+		}()
 	}
 
 	log.Printf(`Starting image evolution with:
